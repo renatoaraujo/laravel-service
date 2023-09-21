@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: {{ .Release.namespace }}
+  name: {{ include "laravel-service.fullname" . }}
+  labels:
+    {{- include "laravel-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "laravel-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "laravel-service.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        - name: src-volume
+          persistentVolumeClaim:
+            claimName: src-pvc
+      initContainers:
+        - name: init-laravel
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+          command: [ "/bin/sh", "-c", "cp -R /var/www/html/* /app/" ]
+          volumeMounts:
+            - name: src-volume
+              mountPath: /app
+      containers:
+        - name: laravel-php-fpm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - name: php-fpm
+              containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - name: src-volume
+              mountPath: /var/www/html
